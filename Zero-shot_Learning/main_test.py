@@ -146,9 +146,19 @@ if args.notrain:
 
 for ii in range(args.itr):
 
-    setting = '{}_sl{}_ll{}_pl{}_dm{}_nh{}_el{}_gl{}_df{}_eb{}_itr{}'.format(args.model_id, args.seq_len, args.label_len, args.pred_len,
-                                                                    args.d_model, args.n_heads, args.e_layers, args.gpt_layers, 
-                                                                    args.d_ff, args.embed, ii)
+    setting = "{}_sl{}_ll{}_pl{}_dm{}_nh{}_el{}_gl{}_df{}_eb{}_itr{}".format(
+        args.model_id,
+        args.seq_len,
+        args.label_len,
+        args.pred_len,
+        args.d_model,
+        args.n_heads,
+        args.e_layers,
+        args.gpt_layers,
+        args.d_ff,
+        args.embed,
+        ii,
+    )
     path = os.path.join(args.checkpoints, setting)
     if not os.path.exists(path):
         os.makedirs(path)
@@ -161,7 +171,7 @@ for ii in range(args.itr):
     args.seq_len = seq_len
     args.pred_len = pred_len
     args.batch_size = batch_size
-    
+
     train_data, train_loader = data_provider(args, 'train', train_all=args.train_all)
 
     args.batch_size = args.test_batch_size
@@ -182,7 +192,6 @@ for ii in range(args.itr):
 
     time_now = time.time()
     train_steps = len(train_loader)
-
 
     if args.model == 'PatchTST':
         model = PatchTST(args, device)
@@ -219,7 +228,7 @@ for ii in range(args.itr):
         model.to(device)
     params = model.parameters()
     model_optim = torch.optim.Adam(params, lr=args.learning_rate)
-    
+
     early_stopping = EarlyStopping(patience=400, verbose=True)
     if args.loss_func == 'mse':
         criterion = nn.MSELoss()
@@ -253,7 +262,7 @@ for ii in range(args.itr):
 
         epoch_time = time.time()
         for i, (batch_x, batch_y, batch_x_mark, batch_y_mark) in tqdm(enumerate(train_loader)):
-            
+
             iter_count += 1
             model_optim.zero_grad()
             batch_x = batch_x.float().to(device)
@@ -261,11 +270,11 @@ for ii in range(args.itr):
             batch_y = batch_y.float().to(device)
             batch_x_mark = batch_x_mark.float().to(device)
             batch_y_mark = batch_y_mark.float().to(device)
-            
+
             # decoder input
             dec_inp = torch.zeros_like(batch_y[:, -args.pred_len:, :]).float()
             dec_inp = torch.cat([batch_y[:, :args.label_len, :], dec_inp], dim=1).float().to(device)
-            
+
             if args.model == 'Stationary' or args.model == 'Autoformer' or args.model == 'Informer':
                 outputs = model(batch_x, batch_x_mark, dec_inp, None)
             elif args.model == 'Reformer':
@@ -291,10 +300,10 @@ for ii in range(args.itr):
                 # print("Test Loss: {0:.7f}".format(test_loss))
                 # mse, mae, smape, mape, nd = test(model, test_data, test_loader, args, device, ii)
                 # print("smape = {}, mape = {}, nd = {}".format(smape, mape, nd))
-                
+
                 iter_count = 0
                 time_now = time.time()
-                
+
             # if (i + 1) == 100:
             #     break
         print("Epoch: {} cost time: {}".format(epoch + 1, time.time() - epoch_time))
@@ -319,7 +328,7 @@ for ii in range(args.itr):
         if early_stopping.early_stop:
             print("Early stopping")
             break
-    
+
     if args.notrain == 0:
         best_model_path = path + '/' + 'checkpoint.pth'
         model.load_state_dict(torch.load(best_model_path))

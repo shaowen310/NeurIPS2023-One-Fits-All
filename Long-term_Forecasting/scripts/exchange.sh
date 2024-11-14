@@ -12,18 +12,17 @@ do
 for lr in 0.0001
 do
 
-model_id="ETTh1_${model}_${gpt_layer}_${seq_len}_${pred_len}_$percent"
+model_id="exchange_${model}_${gpt_layer}_${seq_len}_${pred_len}_$percent"
 
 python main.py \
-    --root_path ./datasets/ETT-small/ \
-    --data_path ETTh1.csv \
+    --root_path ./datasets/exchange_rate/ \
+    --data_path exchange_rate.csv \
     --model_id $model_id \
-    --data ett_h \
+    --data custom \
     --seq_len $seq_len \
     --label_len $label_len \
     --pred_len $pred_len \
     --batch_size 256 \
-    --lradj type4 \
     --learning_rate $lr \
     --train_epochs 10 \
     --decay_fac 0.5 \

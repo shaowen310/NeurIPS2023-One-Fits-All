@@ -18,7 +18,7 @@ def data_provider(args, flag, drop_last_test=True, train_all=False):
     if flag == 'test':
         shuffle_flag = False
         drop_last = drop_last_test
-        batch_size = args.batch_size
+        batch_size = 1
         freq = args.freq
     elif flag == 'pred':
         shuffle_flag = False

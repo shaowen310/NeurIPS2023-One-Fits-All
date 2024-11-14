@@ -79,7 +79,6 @@ parser.add_argument('--itr', type=int, default=3)
 parser.add_argument('--cos', type=int, default=0)
 
 
-
 args = parser.parse_args()
 
 SEASONALITY_MAP = {
@@ -99,9 +98,19 @@ maes = []
 
 for ii in range(args.itr):
 
-    setting = '{}_sl{}_ll{}_pl{}_dm{}_nh{}_el{}_gl{}_df{}_eb{}_itr{}'.format(args.model_id, 336, args.label_len, args.pred_len,
-                                                                    args.d_model, args.n_heads, args.e_layers, args.gpt_layers, 
-                                                                    args.d_ff, args.embed, ii)
+    setting = "{}_sl{}_ll{}_pl{}_dm{}_nh{}_el{}_gl{}_df{}_eb{}_itr{}".format(
+        args.model_id,
+        args.seq_len,
+        args.label_len,
+        args.pred_len,
+        args.d_model,
+        args.n_heads,
+        args.e_layers,
+        args.gpt_layers,
+        args.d_ff,
+        args.embed,
+        ii,
+    )
     path = os.path.join(args.checkpoints, setting)
     if not os.path.exists(path):
         os.makedirs(path)
@@ -134,7 +143,7 @@ for ii in range(args.itr):
 
     params = model.parameters()
     model_optim = torch.optim.Adam(params, lr=args.learning_rate)
-    
+
     early_stopping = EarlyStopping(patience=args.patience, verbose=True)
     if args.loss_func == 'mse':
         criterion = nn.MSELoss()
@@ -145,7 +154,7 @@ for ii in range(args.itr):
             def forward(self, pred, true):
                 return torch.mean(200 * torch.abs(pred - true) / (torch.abs(pred) + torch.abs(true) + 1e-8))
         criterion = SMAPE()
-    
+
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(model_optim, T_max=args.tmax, eta_min=1e-8)
 
     for epoch in range(args.train_epochs):
@@ -162,7 +171,7 @@ for ii in range(args.itr):
             batch_y = batch_y.float().to(device)
             batch_x_mark = batch_x_mark.float().to(device)
             batch_y_mark = batch_y_mark.float().to(device)
-            
+
             outputs = model(batch_x, ii)
 
             outputs = outputs[:, -args.pred_len:, :]
@@ -180,7 +189,6 @@ for ii in range(args.itr):
             loss.backward()
             model_optim.step()
 
-        
         print("Epoch: {} cost time: {}".format(epoch + 1, time.time() - epoch_time))
 
         train_loss = np.average(train_loss)
