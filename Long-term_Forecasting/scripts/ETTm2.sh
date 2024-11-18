@@ -1,16 +1,16 @@
 # export CUDA_VISIBLE_DEVICES=0
 
 seq_len=96
-label_len=48
+label_len=0
 model=GPT4TS
 gpt_layer=6
 
 for percent in 100
 do
-for pred_len in 24 36 48 96
+for pred_len in 24 36 48 96 192
 do
 
-model_id="ETTm2_${model}_${gpt_layer}_${seq_len}_${pred_len}_$percent"
+model_id=ETTm2_${model}_${gpt_layer}_${seq_len}_${pred_len}_$percent
 
 python main.py \
     --root_path ./datasets/ETT-small/ \
