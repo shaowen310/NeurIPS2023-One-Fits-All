@@ -1,5 +1,5 @@
 from data_provider.data_factory import data_provider
-from utils.tools import EarlyStopping, adjust_learning_rate, visual, vali, test
+from utils.tools import EarlyStopping, adjust_learning_rate, vali, test
 from tqdm import tqdm
 from models.PatchTST import PatchTST
 from models.GPT4TS import GPT4TS
@@ -9,13 +9,11 @@ from models.DLinear import DLinear
 import numpy as np
 import torch
 import torch.nn as nn
-from torch import optim
 
 import os
 import time
 
 import warnings
-import matplotlib.pyplot as plt
 import numpy as np
 
 import argparse
@@ -36,7 +34,8 @@ np.random.seed(fix_seed)
 
 parser = argparse.ArgumentParser(description='GPT4TS')
 
-parser.add_argument('--model_id', type=str, required=True, default='test')
+parser.add_argument('--is_training', type=int, default=1, help='status')
+parser.add_argument('--model_id', type=str, default='test')
 parser.add_argument('--checkpoints', type=str, default='./checkpoints/')
 
 parser.add_argument('--root_path', type=str, default='./dataset/traffic/')
@@ -102,8 +101,10 @@ SEASONALITY_MAP = {
 mses = []
 maes = []
 
+if not args.is_training:
+    args.itr = 1
+    
 for ii in range(args.itr):
-
     setting = "{}_sl{}_ll{}_pl{}_dm{}_nh{}_el{}_gl{}_df{}_eb{}_itr{}".format(
         args.model_id,
         args.seq_len,
@@ -133,10 +134,7 @@ for ii in range(args.itr):
         print("freq = {}".format(args.freq))
 
     device = torch.device('cuda:0')
-
-    time_now = time.time()
-    train_steps = len(train_loader)
-
+    
     if args.model == 'PatchTST':
         model = PatchTST(args, device)
         model.to(device)
@@ -149,74 +147,78 @@ for ii in range(args.itr):
     
     print("The number of parameters: {}".format(param_num(model)))
     print("The number of trainable parameters: {}".format(count_trainable_params(model)))
+    
+    if args.is_training:
+        time_now = time.time()
+        train_steps = len(train_loader)
 
-    params = model.parameters()
-    model_optim = torch.optim.Adam(params, lr=args.learning_rate)
+        params = model.parameters()
+        model_optim = torch.optim.Adam(params, lr=args.learning_rate)
 
-    early_stopping = EarlyStopping(patience=args.patience, verbose=True)
-    if args.loss_func == 'mse':
-        criterion = nn.MSELoss()
-    elif args.loss_func == 'smape':
-        class SMAPE(nn.Module):
-            def __init__(self):
-                super(SMAPE, self).__init__()
-            def forward(self, pred, true):
-                return torch.mean(200 * torch.abs(pred - true) / (torch.abs(pred) + torch.abs(true) + 1e-8))
-        criterion = SMAPE()
+        early_stopping = EarlyStopping(patience=args.patience, verbose=True)
+        if args.loss_func == 'mse':
+            criterion = nn.MSELoss()
+        elif args.loss_func == 'smape':
+            class SMAPE(nn.Module):
+                def __init__(self):
+                    super(SMAPE, self).__init__()
+                def forward(self, pred, true):
+                    return torch.mean(200 * torch.abs(pred - true) / (torch.abs(pred) + torch.abs(true) + 1e-8))
+            criterion = SMAPE()
 
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(model_optim, T_max=args.tmax, eta_min=1e-8)
+        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(model_optim, T_max=args.tmax, eta_min=1e-8)
 
-    for epoch in range(args.train_epochs):
+        for epoch in range(args.train_epochs):
 
-        iter_count = 0
-        train_loss = []
-        epoch_time = time.time()
-        for i, (batch_x, batch_y, batch_x_mark, batch_y_mark) in tqdm(enumerate(train_loader)):
+            iter_count = 0
+            train_loss = []
+            epoch_time = time.time()
+            for i, (batch_x, batch_y, batch_x_mark, batch_y_mark) in tqdm(enumerate(train_loader)):
 
-            iter_count += 1
-            model_optim.zero_grad()
-            batch_x = batch_x.float().to(device)
+                iter_count += 1
+                model_optim.zero_grad()
+                batch_x = batch_x.float().to(device)
 
-            batch_y = batch_y.float().to(device)
-            batch_x_mark = batch_x_mark.float().to(device)
-            batch_y_mark = batch_y_mark.float().to(device)
+                batch_y = batch_y.float().to(device)
+                batch_x_mark = batch_x_mark.float().to(device)
+                batch_y_mark = batch_y_mark.float().to(device)
 
-            outputs = model(batch_x, ii)
+                outputs = model(batch_x, ii)
 
-            outputs = outputs[:, -args.pred_len:, :]
-            batch_y = batch_y[:, -args.pred_len:, :].to(device)
-            loss = criterion(outputs, batch_y)
-            train_loss.append(loss.item())
+                outputs = outputs[:, -args.pred_len:, :]
+                batch_y = batch_y[:, -args.pred_len:, :].to(device)
+                loss = criterion(outputs, batch_y)
+                train_loss.append(loss.item())
 
-            if (i + 1) % 1000 == 0:
-                print("\titers: {0}, epoch: {1} | loss: {2:.7f}".format(i + 1, epoch + 1, loss.item()))
-                speed = (time.time() - time_now) / iter_count
-                left_time = speed * ((args.train_epochs - epoch) * train_steps - i)
-                print('\tspeed: {:.4f}s/iter; left time: {:.4f}s'.format(speed, left_time))
-                iter_count = 0
-                time_now = time.time()
-            loss.backward()
-            model_optim.step()
+                if (i + 1) % 1000 == 0:
+                    print("\titers: {0}, epoch: {1} | loss: {2:.7f}".format(i + 1, epoch + 1, loss.item()))
+                    speed = (time.time() - time_now) / iter_count
+                    left_time = speed * ((args.train_epochs - epoch) * train_steps - i)
+                    print('\tspeed: {:.4f}s/iter; left time: {:.4f}s'.format(speed, left_time))
+                    iter_count = 0
+                    time_now = time.time()
+                loss.backward()
+                model_optim.step()
 
-        print("Epoch: {} cost time: {}".format(epoch + 1, time.time() - epoch_time))
+            print("Epoch: {} cost time: {}".format(epoch + 1, time.time() - epoch_time))
 
-        train_loss = np.average(train_loss)
-        vali_loss = vali(model, vali_data, vali_loader, criterion, args, device, ii)
-        # test_loss = vali(model, test_data, test_loader, criterion, args, device, ii)
-        # print("Epoch: {0}, Steps: {1} | Train Loss: {2:.7f} Vali Loss: {3:.7f}, Test Loss: {4:.7f}".format(
-        #     epoch + 1, train_steps, train_loss, vali_loss, test_loss))
-        print("Epoch: {0}, Steps: {1} | Train Loss: {2:.7f} Vali Loss: {3:.7f}".format(
-            epoch + 1, train_steps, train_loss, vali_loss))
+            train_loss = np.average(train_loss)
+            vali_loss = vali(model, vali_data, vali_loader, criterion, args, device, ii)
+            # test_loss = vali(model, test_data, test_loader, criterion, args, device, ii)
+            # print("Epoch: {0}, Steps: {1} | Train Loss: {2:.7f} Vali Loss: {3:.7f}, Test Loss: {4:.7f}".format(
+            #     epoch + 1, train_steps, train_loss, vali_loss, test_loss))
+            print("Epoch: {0}, Steps: {1} | Train Loss: {2:.7f} Vali Loss: {3:.7f}".format(
+                epoch + 1, train_steps, train_loss, vali_loss))
 
-        if args.cos:
-            scheduler.step()
-            print("lr = {:.10f}".format(model_optim.param_groups[0]['lr']))
-        else:
-            adjust_learning_rate(model_optim, epoch + 1, args)
-        early_stopping(vali_loss, model, path)
-        if early_stopping.early_stop:
-            print("Early stopping")
-            break
+            if args.cos:
+                scheduler.step()
+                print("lr = {:.10f}".format(model_optim.param_groups[0]['lr']))
+            else:
+                adjust_learning_rate(model_optim, epoch + 1, args)
+            early_stopping(vali_loss, model, path)
+            if early_stopping.early_stop:
+                print("Early stopping")
+                break
 
     best_model_path = path + '/' + 'checkpoint.pth'
     model.load_state_dict(torch.load(best_model_path))
