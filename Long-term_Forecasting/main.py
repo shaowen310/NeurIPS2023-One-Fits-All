@@ -21,7 +21,7 @@ import random
 
 def param_num(self):
     return sum([param.nelement() for param in self.parameters()])
-    
+
 def count_trainable_params(self):
     return sum(p.numel() for p in self.parameters() if p.requires_grad)
 
@@ -103,7 +103,7 @@ maes = []
 
 if not args.is_training:
     args.itr = 1
-    
+
 for ii in range(args.itr):
     setting = "{}_sl{}_ll{}_pl{}_dm{}_nh{}_el{}_gl{}_df{}_eb{}_itr{}".format(
         args.model_id,

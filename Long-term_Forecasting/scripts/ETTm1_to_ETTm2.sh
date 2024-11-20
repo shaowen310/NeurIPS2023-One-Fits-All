@@ -2,7 +2,6 @@ seq_len=96
 label_len=0
 model=GPT4TS
 gpt_layer=6
-is_training=1
 
 for percent in 100
 do
@@ -16,14 +15,14 @@ model_id=ETTm1_${model}_${gpt_layer}_${seq_len}_${pred_len}_$percent
 
 python main.py \
     --root_path ./datasets/ETT-small/ \
-    --data_path ETTm1.csv \
+    --data_path ETTm2.csv \
     --model_id $model_id \
     --data ett_m \
     --seq_len $seq_len \
     --label_len $label_len \
     --pred_len $pred_len \
     --batch_size 256 \
-    --is_training $is_training \
+    --is_training 0 \
     --learning_rate 0.0001 \
     --train_epochs 10 \
     --decay_fac 0.75 \
@@ -42,7 +41,8 @@ python main.py \
     --model $model \
     --cos 1 \
     --is_gpt 1 \
-    2>&1 | tee -a logs/$model_id.log
+    2>&1 | tee -a logs/${model_id}_ETTm2.log
+
 done
 done
 done
