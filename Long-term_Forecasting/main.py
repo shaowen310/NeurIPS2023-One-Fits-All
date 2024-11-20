@@ -21,6 +21,12 @@ import numpy as np
 import argparse
 import random
 
+def param_num(self):
+    return sum([param.nelement() for param in self.parameters()])
+    
+def count_trainable_params(self):
+    return sum(p.numel() for p in self.parameters() if p.requires_grad)
+
 warnings.filterwarnings('ignore')
 
 fix_seed = 2021
@@ -140,6 +146,9 @@ for ii in range(args.itr):
     else:
         model = GPT4TS(args, device)
     # mse, mae = test(model, test_data, test_loader, args, device, ii)
+    
+    print("The number of parameters: {}".format(param_num(model)))
+    print("The number of trainable parameters: {}".format(count_trainable_params(model)))
 
     params = model.parameters()
     model_optim = torch.optim.Adam(params, lr=args.learning_rate)
